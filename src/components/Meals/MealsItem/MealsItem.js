@@ -7,8 +7,8 @@ const MealsItem = (props) => {
     <li>
       <div className={classes.meals}>
         <h3>{props.name}</h3>
-        <div>{props.description}</div>
-        <div>{price}</div>
+        <div className={classes.description}>{props.description}</div>
+        <div className={classes.price}>{price}</div>
       </div>
       {/* <div></div> */}
     </li>
