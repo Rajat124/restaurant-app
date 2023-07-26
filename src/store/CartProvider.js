@@ -1,54 +1,89 @@
-import { useContext } from "react";
+import { useReducer } from 'react';
 
-import Modal from "../UI/Modal ";
-import CartItem from "./CartItem";
-import classes from "./Cart.module.css";
-import CartContext from "../../store/cart-context";
+import CartContext from './cart-context';
 
-const Cart = (props) => {
-  const cartCtx = useContext(CartContext);
+const defaultCartState = {
+  items: [],
+  totalAmount: 0,
+};
 
-  const totalAmount = `$${cartCtx.totalAmount.toFixed(2)}`;
-  const hasItems = cartCtx.items.length > 0;
+const cartReducer = (state, action) => {
+  if (action.type === 'ADD') {
+    const updatedTotalAmount =
+      state.totalAmount + action.item.price * action.item.amount;
 
-  const cartItemRemoveHandler = (id) => {
-    cartCtx.removeItem(id);
-  };
+    const existingCartItemIndex = state.items.findIndex(
+      (item) => item.id === action.item.id
+    );
+    const existingCartItem = state.items[existingCartItemIndex];
+    let updatedItems;
 
-  const cartItemAddHandler = (item) => {
-    cartCtx.addItem({ ...item, amount: 1 });
-  };
+    if (existingCartItem) {
+      const updatedItem = {
+        ...existingCartItem,
+        amount: existingCartItem.amount + action.item.amount,
+      };
+      updatedItems = [...state.items];
+      updatedItems[existingCartItemIndex] = updatedItem;
+    } else {
+      updatedItems = state.items.concat(action.item);
+    }
 
-  const cartItems = (
-    <ul className={classes["cart-items"]}>
-      {cartCtx.items.map((item) => (
-        <CartItem
-          key={item.id}
-          name={item.name}
-          amount={item.amount}
-          price={item.price}
-          onRemove={cartItemRemoveHandler.bind(null, item.id)}
-          onAdd={cartItemAddHandler.bind(null, item)}
-        />
-      ))}
-    </ul>
+    return {
+      items: updatedItems,
+      totalAmount: updatedTotalAmount,
+    };
+  }
+  if (action.type === 'REMOVE') {
+    const existingCartItemIndex = state.items.findIndex(
+      (item) => item.id === action.id
+    );
+    const existingItem = state.items[existingCartItemIndex];
+    const updatedTotalAmount = state.totalAmount - existingItem.price;
+    let updatedItems;
+    if (existingItem.amount === 1) {
+      updatedItems = state.items.filter(item => item.id !== action.id);
+    } else {
+      const updatedItem = { ...existingItem, amount: existingItem.amount - 1 };
+      updatedItems = [...state.items];
+      updatedItems[existingCartItemIndex] = updatedItem;
+    }
+
+    return {
+      items: updatedItems,
+      totalAmount: updatedTotalAmount
+    };
+  }
+
+  return defaultCartState;
+};
+
+const CartProvider = (props) => {
+  const [cartState, dispatchCartAction] = useReducer(
+    cartReducer,
+    defaultCartState
   );
 
+  const addItemToCartHandler = (item) => {
+    dispatchCartAction({ type: 'ADD', item: item });
+  };
+
+  const removeItemFromCartHandler = (id) => {
+    dispatchCartAction({ type: 'REMOVE', id: id });
+  };
+
+  const cartContext = {
+    items: cartState.items,
+    totalAmount: cartState.totalAmount,
+    addItem: addItemToCartHandler,
+    removeItem: removeItemFromCartHandler,
+  };
+
   return (
-    <Modal onClose={props.onClose}>
-      {cartItems}
-      <div className={classes.total}>
-        <span>Total Amount</span>
-        <span>{totalAmount}</span>
-      </div>
-      <div className={classes.actions}>
-        <button className={classes["button--alt"]} onClick={props.onClose}>
-          Close
-        </button>
-        {hasItems && <button className={classes.button}>Order</button>}
-      </div>
-    </Modal>
+    <CartContext.Provider value={cartContext}>
+      {props.children}
+    </CartContext.Provider>
   );
 };
 
-export default Cart;
+export default CartProvider;
